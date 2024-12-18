@@ -51,81 +51,42 @@ public:
         return string(timeString);
     }
     virtual void makeAccount(int type, double depositAmount) {
-        int accountNumber = nextAccountNumber++; // gives  a unique account number
-
-        time_t timestamp;
-        time(&timestamp);
-        char timeString[26];
-        ctime_s(timeString, sizeof(timeString), &timestamp);
-        timeString[24] = '\0'; // Remove newline character
-        string timestampStr(timeString);
+        int accountNumber = nextAccountNumber++;
+        string timestampStr = getCurrentTimestamp();
 
         if (type == 1) { // Savings Account
             SavingsBalance[accountNumber] = depositAmount;
             AccountCreationTime[accountNumber] = timestampStr;
-            cout << "Savings account created with Account Number: " << accountNumber << endl;
-
-            time_t timestamp;
-            time(&timestamp);
-            char timeString[26];
-            ctime_s(timeString, sizeof(timeString), &timestamp);
-
-            // Remove newline character from timeString
-            timeString[24] = '\0';
-
-            // Convert timestamp to string and use it as key
-            string timestampStr(timeString);
-
             InitialSavingDeposit[accountNumber] = timestampStr;
-
-
+            DepositHistory[accountNumber].emplace_back(depositAmount, timestampStr);
+            cout << "Savings account created with Account Number: " << accountNumber << endl;
         } else if (type == 2) { // Current Account
             CurrentBalance[accountNumber] = depositAmount;
             AccountCreationTime[accountNumber] = timestampStr;
-            cout << "Current account created with Account Number: " << accountNumber << endl;
-
-            time_t timestamp;
-            time(&timestamp);
-            char timeString[26];
-            ctime_s(timeString, sizeof(timeString), &timestamp);
-
-            // Remove newline character from timeString
-            timeString[24] = '\0';
-
-            // Convert timestamp to string and use it as key
-            string timestampStr(timeString);
-
             InitialCurrentBalanceDeposit[accountNumber] = timestampStr;
+            DepositHistory[accountNumber].emplace_back(depositAmount, timestampStr);
+            cout << "Current account created with Account Number: " << accountNumber << endl;
         } else if (type == 3) { // ISA Account
             if (depositAmount < 1000) {
                 cout << "ISA initial balance must be >= £1000" << endl;
+                nextAccountNumber--;
+                return;
             } else if (IsaBalance.empty()) {
                 IsaBalance[accountNumber] = depositAmount;
                 AccountCreationTime[accountNumber] = timestampStr;
-                cout << "ISA account created with Account Number: " << accountNumber << endl;
-
-
-                time_t timestamp;
-                time(&timestamp);
-                char timeString[26];
-                ctime_s(timeString, sizeof(timeString), &timestamp);
-
-                // Remove newline character from timeString
-                timeString[24] = '\0';
-
-                // Convert timestamp to string and use it as key
-                string timestampStr(timeString);
-
                 InitialIsaDeposit[accountNumber] = timestampStr;
+                DepositHistory[accountNumber].emplace_back(depositAmount, timestampStr);
+                cout << "ISA account created with Account Number: " << accountNumber << endl;
             } else {
                 cout << "Only one ISA account allowed." << endl;
-                nextAccountNumber--; // Revert increment if ISA creation fails
+                nextAccountNumber--;
             }
         } else {
             cout << "Invalid account type." << endl;
-            nextAccountNumber--; // Revert increment for invalid type
+            nextAccountNumber--;
         }
     }
+
 
     virtual void getAccountDetails(int accountNumber) const {
         auto it = AccountCreationTime.find(accountNumber);
@@ -144,23 +105,21 @@ public:
             cout << "Account not found." << endl;
         }
     }
-
     void getTimeStamp(int type, int accountnum) {
         cout << "Transaction history for Account " << accountnum << ":" << endl;
 
-        if (type == 1 && InitialSavingDeposit.count(accountnum)) {
-            cout << "-- Initial deposit: £0.00 on " << InitialSavingDeposit[accountnum] << endl;
-        } else if (type == 2 && InitialCurrentBalanceDeposit.count(accountnum)) {
-            cout << "-- Initial deposit: £0.00 on " << InitialCurrentBalanceDeposit[accountnum] << endl;
-        } else if (type == 3 && InitialIsaDeposit.count(accountnum)) {
-            cout << "-- Initial deposit: £0.00 on " << InitialIsaDeposit[accountnum] << endl;
-        }
+        if (DepositHistory.count(accountnum) && !DepositHistory[accountnum].empty()) {
+            const auto& initialDeposit = DepositHistory[accountnum][0];
+            cout << "-- Initial deposit: £" << fixed << setprecision(2) << initialDeposit.first
+                 << " on " << initialDeposit.second << endl;
 
-        if (DepositHistory.count(accountnum)) {
-            for (const auto& record : DepositHistory[accountnum]) {
-                cout << "-- Deposit: £" << fixed << setprecision(2)
-                     << record.first << " on " << record.second << endl;
+            for (size_t i = 1; i < DepositHistory[accountnum].size(); ++i) {
+                const auto& record = DepositHistory[accountnum][i];
+                cout << "-- Deposit: £" << fixed << setprecision(2) << record.first
+                     << " on " << record.second << endl;
             }
+        } else {
+            cout << "No deposits recorded for this account." << endl;
         }
 
         if (TransferHistory.count(accountnum)) {
@@ -168,20 +127,21 @@ public:
                 cout << "-- " << transfer.first << " on " << transfer.second << endl;
             }
         } else {
-            cout << "No transfers recorded yet for this account." << endl;
+            cout << "No transfers recorded for this account." << endl;
         }
     }
 
 
 
+
     int getAccountType(int accountnum) {
-        if (InitialSavingDeposit.count(accountnum)) {
+        if (SavingsBalance.count(accountnum)) {
             cout << "Account number " << accountnum << " is a Savings account." << endl;
             return 1;
-        } else if (InitialCurrentBalanceDeposit.count(accountnum)) {
+        } else if (CurrentBalance.count(accountnum)) {
             cout << "Account number " << accountnum << " is a Current account." << endl;
             return 2;
-        } else if (InitialIsaDeposit.count(accountnum)) {
+        } else if (IsaBalance.count(accountnum)) {
             cout << "Account number " << accountnum << " is an ISA account." << endl;
             return 3;
         } else {
@@ -189,6 +149,7 @@ public:
             return 0;
         }
     }
+
 
 
     virtual double getBalance(int accountNumber) {
@@ -213,25 +174,11 @@ public:
 
 
 
-    virtual void depositFunds(int type, int accountNumber, double amount) {
-        if (type == 1 && SavingsBalance.count(accountNumber)) {
-            SavingsBalance[accountNumber] += amount;
 
 
 
 
-
-        } else if (type == 2 && CurrentBalance.count(accountNumber)) {
-            CurrentBalance[accountNumber] += amount;
-        } else {
-            cout << "Account not found." << endl;
-        }
-
-    }
-
-
-
-    virtual void depositer(int accountNumber, double amount) {
+    virtual void deposit(int accountNumber, double amount) {
         string timestampStr = getCurrentTimestamp();
 
         if (SavingsBalance.count(accountNumber)) {
@@ -281,39 +228,39 @@ public:
 
     void transfer(int fromAccount, int toAccount, double amount) {
         string timestamp = getCurrentTimestamp();
-
         if (fromAccount == toAccount) {
             cout << "Cannot transfer to the same account." << endl;
             return;
         }
 
-        if (SavingsBalance.count(fromAccount) && (SavingsBalance[fromAccount] >= amount)) {
-            SavingsBalance[fromAccount] -= amount;
-            SavingsBalance[toAccount] += amount;
+        auto updateBalance = [&](map<int, double>& fromBalance, map<int, double>& toBalance) {
+            if (fromBalance.count(fromAccount) && (fromBalance[fromAccount] >= amount)) {
+                fromBalance[fromAccount] -= amount;
+                toBalance[toAccount] += amount;
 
-            // Record the transfer history
-            TransferHistory[fromAccount].emplace_back(
-                "Transfer to account " + to_string(toAccount) + ": -£" + to_string(amount), timestamp);
-            TransferHistory[toAccount].emplace_back(
-                "Transfer from account " + to_string(fromAccount) + ": +£" + to_string(amount), timestamp);
+                TransferHistory[fromAccount].emplace_back(
+                    "Transfer to account " + to_string(toAccount) + ": -£" + to_string(amount), timestamp);
+                TransferHistory[toAccount].emplace_back(
+                    "Transfer from account " + to_string(fromAccount) + ": +£" + to_string(amount), timestamp);
 
-            cout << "Transfer successful!" << endl;
-        } else if (CurrentBalance.count(fromAccount) &&
-                   (CurrentBalance[fromAccount] - amount >= -500)) {
-            CurrentBalance[fromAccount] -= amount;
-            CurrentBalance[toAccount] += amount;
+                cout << "Transfer successful!" << endl;
+                return true;
+            }
+            return false;
+        };
 
-            // Record the transfer history
-            TransferHistory[fromAccount].emplace_back(
-                "Transfer to account " + to_string(toAccount) + ": -£" + to_string(amount), timestamp);
-            TransferHistory[toAccount].emplace_back(
-                "Transfer from account " + to_string(fromAccount) + ": +£" + to_string(amount), timestamp);
+        if (SavingsBalance.count(fromAccount)) {
+            if (updateBalance(SavingsBalance, SavingsBalance.count(toAccount) ? SavingsBalance : CurrentBalance)) return;
+        } else if (CurrentBalance.count(fromAccount)) {
+            if (CurrentBalance[fromAccount] - amount >= -500) {
+                if (updateBalance(CurrentBalance, CurrentBalance.count(toAccount) ? CurrentBalance : SavingsBalance)) return;
+            }
+        }
 
-            cout << "Transfer successful!" << endl;
-                   } else {
-                       cout << "Transfer failed: Insufficient funds or invalid accounts." << endl;
-                   }
+        cout << "Transfer failed: Insufficient funds or invalid accounts." << endl;
     }
+
+
 
 
 
@@ -402,7 +349,6 @@ int main() {
             }
             int accountNumber = stoi(parameters[1]);
             double balance = account->getBalance(accountNumber);
-
             int accounttype = account->getAccountType(accountNumber);
             if (balance != -1) {
                 cout << "Account: " << accountNumber << ", Balance: £" << fixed << setprecision(2) << balance << endl;
@@ -412,10 +358,11 @@ int main() {
             }
             cin.ignore();
         }
+
         else if (command == "deposit") {
             int accountNumber = stoi(parameters[1]);
             double amount = stod(parameters[2]);
-            account->depositer(accountNumber, amount);
+            account->deposit(accountNumber, amount);
         }
         else if (command == "withdraw") {
             // int type = stoi(parameters[1]);
