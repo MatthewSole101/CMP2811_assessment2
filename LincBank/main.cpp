@@ -55,17 +55,17 @@ public:
         string timestampStr = getCurrentTimestamp();
 
         if (type == 1) { // Savings Account
-            SavingsBalance[accountNumber] = depositAmount;
-            AccountCreationTime[accountNumber] = timestampStr;
-            InitialSavingDeposit[accountNumber] = timestampStr;
-            DepositHistory[accountNumber].emplace_back(depositAmount, timestampStr);
-            cout << "Savings account created with Account Number: " << accountNumber << endl;
-        } else if (type == 2) { // Current Account
             CurrentBalance[accountNumber] = depositAmount;
             AccountCreationTime[accountNumber] = timestampStr;
             InitialCurrentBalanceDeposit[accountNumber] = timestampStr;
             DepositHistory[accountNumber].emplace_back(depositAmount, timestampStr);
             cout << "Current account created with Account Number: " << accountNumber << endl;
+        } else if (type == 2) { // Current Account
+            SavingsBalance[accountNumber] = depositAmount;
+            AccountCreationTime[accountNumber] = timestampStr;
+            InitialSavingDeposit[accountNumber] = timestampStr;
+            DepositHistory[accountNumber].emplace_back(depositAmount, timestampStr);
+            cout << "Savings account created with Account Number: " << accountNumber << endl;
         } else if (type == 3) { // ISA Account
             if (depositAmount < 1000) {
                 cout << "ISA initial balance must be >= £1000" << endl;
